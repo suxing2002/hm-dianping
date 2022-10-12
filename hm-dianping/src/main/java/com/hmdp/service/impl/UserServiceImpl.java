@@ -1,6 +1,8 @@
 package com.hmdp.service.impl;
 
 import cn.hutool.captcha.generator.RandomGenerator;
+import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.lang.UUID;
 import cn.hutool.core.util.RandomUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -9,15 +11,19 @@ import com.hmdp.dto.Result;
 import com.hmdp.entity.User;
 import com.hmdp.mapper.UserMapper;
 import com.hmdp.service.IUserService;
+import com.hmdp.utils.CustomerBeanUtils;
 import com.hmdp.utils.RegexUtils;
 import com.hmdp.utils.SendCodeUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import javax.servlet.http.HttpSession;
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 
 import static com.hmdp.utils.SystemConstants.USER_NICK_NAME_PREFIX;
 
@@ -36,21 +42,25 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     private SendCodeUtils sendCodeUtils;
     @Autowired
     private UserMapper userMapper;
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
+
     /**
      * 发送短信 效验号码格式 生成验证码 发送验证码 存储验证码
      * 基于session(无法使验证码定时失效)
+     *
      * @param phone
      * @param session
      * @return
      */
     @Override
     public Result sendCodeWithSession(String phone, HttpSession session) {
-        if(RegexUtils.isPhoneInvalid(phone)){
+        if (RegexUtils.isPhoneInvalid(phone)) {
             return Result.fail("手机号码格式错误");
         }
         String code = RandomUtil.randomNumbers(6);
 //        sendCodeUtils.SendCode(phone,code);
-        log.info("发送验证码成功: {} -> {}", code , phone);
+        log.info("发送验证码成功: {} -> {}", code, phone);
         session.setAttribute(phone, code);
         return Result.ok();
     }
@@ -59,6 +69,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
      * 根据 phone - code 或 phone - password 登录 (只做验证码)
      * 基于session
      * phone - code : 验证码验证 查询用户 存储用户
+     *
      * @param loginForm
      * @param session
      * @return
@@ -67,22 +78,75 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     public Result userSignInBySession(LoginFormDTO loginForm, HttpSession session) {
         String code = loginForm.getCode();
         String phone = loginForm.getPhone();
-        if(!RegexUtils.isPhoneInvalid(phone) && StringUtils.hasText(code)){
-            if(code.equals(session.getAttribute(phone))){
+        if (!RegexUtils.isPhoneInvalid(phone) && StringUtils.hasText(code)) {
+            if (code.equals(session.getAttribute(phone))) {
                 //验证码正确
                 LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
                 queryWrapper.eq(User::getPhone, phone);
                 User user = userMapper.selectOne(queryWrapper);
-                if(user == null){
+                if (user == null) {
                     //基于session设置公共字段还要使用ThreadLocal存储session,太麻烦
                     //以后更换redis,这里手动填充
-                   user = SaveUserByPhone(phone);
+                    user = SaveUserByPhone(phone);
                 }
                 session.setAttribute("user", user);
                 return Result.ok(user);
             }
         }
         return Result.fail("登陆失败,请检查号码或验证码是否正确");
+    }
+
+    /**
+     * 基于Redis实现验证码保存功能
+     *
+     * @param phone
+     * @return
+     */
+    @Override
+    public Result sendCodeWithRedis(String phone) {
+        if (RegexUtils.isPhoneInvalid(phone)) {
+            return Result.fail("手机号码格式错误");
+        }
+        String code = RandomUtil.randomNumbers(6);
+//        sendCodeUtils.SendCode(phone,code);
+        log.info("发送验证码成功: {} -> {}", code, phone);
+        stringRedisTemplate.opsForValue().set(phone, code, Duration.ofSeconds(60L));
+        return Result.ok();
+    }
+
+    /**
+     * 基于redis实现验证码查询,存储用户信息功能
+     *
+     * @param loginForm
+     * @return
+     */
+    @Override
+    public Result userSignInWithRedis(LoginFormDTO loginForm) {
+        String code = loginForm.getCode();
+        String phone = loginForm.getPhone();
+        if (!RegexUtils.isPhoneInvalid(phone) && StringUtils.hasText(code)) {
+            String cacheCode = stringRedisTemplate.opsForValue().get(phone);
+            if (code.equals(cacheCode)) {
+                //验证码正确
+                stringRedisTemplate.delete(phone);
+                User user = queryUserByPhone(phone);
+                if (user == null) {
+                    //基于session设置公共字段还要使用ThreadLocal存储session,太麻烦
+                    //以后更换redis,这里手动填充
+                    user = SaveUserByPhone(phone);
+                }
+                String token = UUID.randomUUID().toString();
+                stringRedisTemplate.opsForHash().putAll(token , CustomerBeanUtils.beanToMapString(user));
+                return Result.ok(token);
+            }
+        }
+        return Result.fail("登陆失败,请检查号码或验证码是否正确");
+    }
+
+    private User queryUserByPhone(String phone) {
+        LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(User::getPhone, phone);
+        return userMapper.selectOne(queryWrapper);
     }
 
     private User SaveUserByPhone(String phone) {

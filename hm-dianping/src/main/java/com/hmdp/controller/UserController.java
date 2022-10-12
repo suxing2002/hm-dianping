@@ -41,7 +41,8 @@ public class UserController {
      */
     @PostMapping("code")
     public Result sendCode(@RequestParam("phone") String phone, HttpSession session) {
-        return userService.sendCodeWithSession(phone , session);
+//        return userService.sendCodeWithSession(phone , session);
+        return userService.sendCodeWithRedis(phone);
     }
 
     /**
@@ -52,7 +53,8 @@ public class UserController {
      */
     @PostMapping("/login")
     public Result login(@RequestBody LoginFormDTO loginForm, HttpSession session){
-        return userService.userSignInBySession(loginForm , session);
+//        return userService.userSignInBySession(loginForm , session);
+        return userService.userSignInWithRedis(loginForm);
     }
 
     /**

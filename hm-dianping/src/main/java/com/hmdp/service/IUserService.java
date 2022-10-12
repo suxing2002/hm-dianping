@@ -34,4 +34,18 @@ public interface IUserService extends IService<User> {
      * @return
      */
     Result userSignInBySession(LoginFormDTO loginForm, HttpSession session);
+
+    /**
+     * 基于Redis实现验证码保存功能
+     * @param phone
+     * @return
+     */
+    Result sendCodeWithRedis(String phone);
+
+    /**
+     * 基于redis实现验证码查询,存储用户信息功能
+     * @param loginForm
+     * @return
+     */
+    Result userSignInWithRedis(LoginFormDTO loginForm);
 }
