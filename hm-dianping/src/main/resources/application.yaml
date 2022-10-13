@@ -28,8 +28,8 @@ logging:
   level:
     com.hmdp: debug
 sms:
-  SecretId: AKIDsdCXdV8XhdLq790d1A5nHXZNwIPvNiqk
-  SecretKey: jEi4FE9uRkqkRt85wc6OcdT8ex4yg5HF
-  SdkAppId: 1400745919
-  TemplateId: 1563057
-  SignName: 夙星的小木船公众号
+  SecretId: ********
+  SecretKey: ********
+  SdkAppId: ********
+  TemplateId: ********
+  SignName: ********
