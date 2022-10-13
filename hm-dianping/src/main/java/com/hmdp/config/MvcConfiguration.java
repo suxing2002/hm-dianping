@@ -1,9 +1,9 @@
 package com.hmdp.config;
 
-import com.hmdp.common.SignInIntercept;
+import com.hmdp.common.GlobalIntercept;
+import com.hmdp.common.UserTokenIntercept;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringBootConfiguration;
-import org.springframework.context.annotation.Bean;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
@@ -21,10 +21,13 @@ public class MvcConfiguration implements WebMvcConfigurer {
     private StringRedisTemplate stringRedisTemplate;
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        SignInIntercept signInIntercept = new SignInIntercept(stringRedisTemplate);
-        InterceptorRegistration registration = registry.addInterceptor(signInIntercept);
-//        registration.addPathPatterns("/**");
-        registration.excludePathPatterns(
+        //全局拦截器
+        InterceptorRegistration globalInterceptorRegistration = registry.addInterceptor(new GlobalIntercept(stringRedisTemplate));
+        globalInterceptorRegistration.addPathPatterns("/**");
+        //用户凭证拦截器
+        InterceptorRegistration userTokenInterceptRegistration = registry.addInterceptor(new UserTokenIntercept());
+        userTokenInterceptRegistration.addPathPatterns("/**");
+        userTokenInterceptRegistration.excludePathPatterns(
                 "/user/code" ,
                 "/user/login",
                 "/user/logout",
