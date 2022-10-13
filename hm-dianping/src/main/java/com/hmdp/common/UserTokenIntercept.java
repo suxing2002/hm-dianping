@@ -20,6 +20,10 @@ public class UserTokenIntercept implements HandlerInterceptor {
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         log.info("用户凭证拦截器 - 请求URI:{}", request.getRequestURI());
         UserDTO userDTO = ConcreteUser.get();
-        return userDTO != null;
+        if(userDTO == null){
+            response.setStatus(401);
+            return false;
+        }
+        return true;
     }
 }
