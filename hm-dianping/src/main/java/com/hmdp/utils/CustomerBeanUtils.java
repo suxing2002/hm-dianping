@@ -2,9 +2,11 @@ package com.hmdp.utils;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.bean.copier.CopyOptions;
+import org.springframework.context.annotation.Bean;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.BiFunction;
 
 /**
  * @Author GuoShuo
@@ -13,13 +15,21 @@ import java.util.Map;
  * @Description
  */
 public class CustomerBeanUtils {
-    private CustomerBeanUtils(){}
-    public static Map<String , String> beanToMapString(Object bean){
-        Map<String, Object> objectMap = BeanUtil.beanToMap(bean);
-        HashMap<String, String> resultMap = new HashMap<>();
-        for (Map.Entry<String, Object> entry : objectMap.entrySet()) {
-            resultMap.put(entry.getKey(), entry.getValue().toString());
-        }
+    private CustomerBeanUtils() {
+    }
+
+    /**
+     * 将map中的value全部转换为String
+     *
+     * @param
+     * @return
+     */
+    public static Map<String, Object> beanToMapString(Object bean) {
+        HashMap<String, Object> resultMap = new HashMap<>();
+        CopyOptions copyOptions = CopyOptions.create().setIgnoreError(false).
+                setFieldValueEditor((fieldName, fieldKey) -> fieldKey.toString());
+        BeanUtil.beanToMap(bean, resultMap, copyOptions);
         return resultMap;
     }
+
 }

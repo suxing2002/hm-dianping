@@ -1,6 +1,7 @@
 package com.hmdp;
 
 import cn.hutool.captcha.generator.RandomGenerator;
+import cn.hutool.core.bean.copier.CopyOptions;
 import cn.hutool.core.util.RandomUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.hmdp.dto.UserDTO;
@@ -57,5 +58,19 @@ class HmDianPingApplicationTests {
         BeanUtils.copyProperties(userObj, userDTO);
         System.out.println(userDTO.getNickName());
         System.out.println(userDTO.getId());
+    }
+
+    @Test
+    void name() {
+        CopyOptions copyOptions = CopyOptions.create().setIgnoreError(false).setFieldValueEditor((fieldName, fieldKey) -> fieldKey.toString());
+        System.out.println(copyOptions.getClass());
+    }
+
+    @Test
+    void test01() {
+        //数据的类型依据运行时类型
+        String str = "123";
+        Object obj = str;
+        System.out.println(obj.getClass());
     }
 }

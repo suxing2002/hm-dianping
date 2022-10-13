@@ -9,14 +9,18 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.util.StringUtils;
 import org.springframework.web.context.support.WebApplicationContextUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
+import java.time.Duration;
 import java.util.Map;
 
+import static com.hmdp.utils.RedisConstants.LOGIN_USER_KEY;
+import static com.hmdp.utils.RedisConstants.LOGIN_USER_TTL;
 import static net.sf.jsqlparser.util.validation.metadata.NamedObject.user;
 
 /**
@@ -26,33 +30,33 @@ import static net.sf.jsqlparser.util.validation.metadata.NamedObject.user;
  * @Description 登录效验
  */
 public class SignInIntercept implements HandlerInterceptor {
-    /**
-     * 在拦截器中是无法正常注入的,拦截器的加载时间在bean初始化之前,只能手动注入(也可以把拦截器作为bean加载,但是我没有成功)
-     */
-    @Autowired
     private StringRedisTemplate stringRedisTemplate;
+
+    public SignInIntercept(StringRedisTemplate stringRedisTemplate) {
+        this.stringRedisTemplate = stringRedisTemplate;
+    }
+
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         String token = request.getHeader("authorization");
-        if (stringRedisTemplate == null) {
-            BeanFactory factory = WebApplicationContextUtils.getRequiredWebApplicationContext(request.getServletContext());
-            stringRedisTemplate = factory.getBean(StringRedisTemplate.class);
-        }
-        Map<Object, Object> entries = stringRedisTemplate.opsForHash().entries(token);
-        User user = null;
-        if (entries.size() != 0) {
-            user = BeanUtil.mapToBean(entries, User.class, true, null);
-        }
-        if (user == null) {
+        if(!StringUtils.hasText(token)){
             response.setStatus(401);
             return false;
         }
-        UserDTO userDTO = new UserDTO();
-        BeanUtils.copyProperties(user, userDTO);
+        Map<Object, Object> entries = stringRedisTemplate.opsForHash().entries(LOGIN_USER_KEY + token);
+        if (entries.size() == 0) {
+            response.setStatus(401);
+            return false;
+        }
+        stringRedisTemplate.expire(LOGIN_USER_KEY + token, Duration.ofSeconds(LOGIN_USER_TTL));
+        UserDTO userDTO = BeanUtil.mapToBean(entries, UserDTO.class, true, null);
+        if (userDTO == null) {
+            response.setStatus(401);
+            return false;
+        }
         ConcreteUser.set(userDTO);
         return true;
     }
-
     @Override
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {
         ConcreteUser.clear();

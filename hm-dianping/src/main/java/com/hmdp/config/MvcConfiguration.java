@@ -1,8 +1,10 @@
 package com.hmdp.config;
 
 import com.hmdp.common.SignInIntercept;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -15,9 +17,11 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  */
 @SpringBootConfiguration
 public class MvcConfiguration implements WebMvcConfigurer {
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        SignInIntercept signInIntercept = new SignInIntercept();
+        SignInIntercept signInIntercept = new SignInIntercept(stringRedisTemplate);
         InterceptorRegistration registration = registry.addInterceptor(signInIntercept);
 //        registration.addPathPatterns("/**");
         registration.excludePathPatterns(

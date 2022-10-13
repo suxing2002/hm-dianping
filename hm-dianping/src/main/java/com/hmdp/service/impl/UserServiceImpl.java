@@ -8,6 +8,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.dto.LoginFormDTO;
 import com.hmdp.dto.Result;
+import com.hmdp.dto.UserDTO;
 import com.hmdp.entity.User;
 import com.hmdp.mapper.UserMapper;
 import com.hmdp.service.IUserService;
@@ -15,6 +16,7 @@ import com.hmdp.utils.CustomerBeanUtils;
 import com.hmdp.utils.RegexUtils;
 import com.hmdp.utils.SendCodeUtils;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -25,6 +27,8 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 
+import static com.hmdp.utils.RedisConstants.*;
+import static com.hmdp.utils.SystemConstants.RANDOM_CODE_LENGTH;
 import static com.hmdp.utils.SystemConstants.USER_NICK_NAME_PREFIX;
 
 /**
@@ -58,7 +62,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         if (RegexUtils.isPhoneInvalid(phone)) {
             return Result.fail("手机号码格式错误");
         }
-        String code = RandomUtil.randomNumbers(6);
+        String code = RandomUtil.randomNumbers(RANDOM_CODE_LENGTH);
 //        sendCodeUtils.SendCode(phone,code);
         log.info("发送验证码成功: {} -> {}", code, phone);
         session.setAttribute(phone, code);
@@ -107,10 +111,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         if (RegexUtils.isPhoneInvalid(phone)) {
             return Result.fail("手机号码格式错误");
         }
-        String code = RandomUtil.randomNumbers(6);
+        String code = RandomUtil.randomNumbers(RANDOM_CODE_LENGTH);
 //        sendCodeUtils.SendCode(phone,code);
         log.info("发送验证码成功: {} -> {}", code, phone);
-        stringRedisTemplate.opsForValue().set(phone, code, Duration.ofSeconds(60L));
+        stringRedisTemplate.opsForValue().set(LOGIN_CODE_KEY + phone, code, Duration.ofSeconds(LOGIN_CODE_TTL));
         return Result.ok();
     }
 
@@ -125,7 +129,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         String code = loginForm.getCode();
         String phone = loginForm.getPhone();
         if (!RegexUtils.isPhoneInvalid(phone) && StringUtils.hasText(code)) {
-            String cacheCode = stringRedisTemplate.opsForValue().get(phone);
+            String cacheCode = stringRedisTemplate.opsForValue().get(LOGIN_CODE_KEY + phone);
             if (code.equals(cacheCode)) {
                 //验证码正确
                 stringRedisTemplate.delete(phone);
@@ -136,7 +140,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
                     user = SaveUserByPhone(phone);
                 }
                 String token = UUID.randomUUID().toString();
-                stringRedisTemplate.opsForHash().putAll(token , CustomerBeanUtils.beanToMapString(user));
+                UserDTO userDto = new UserDTO();
+                BeanUtils.copyProperties(user, userDto);
+                stringRedisTemplate.opsForHash().putAll(LOGIN_USER_KEY + token , CustomerBeanUtils.beanToMapString(userDto));
+                stringRedisTemplate.expire(LOGIN_USER_KEY + token, Duration.ofSeconds(LOGIN_USER_TTL));
                 return Result.ok(token);
             }
         }
