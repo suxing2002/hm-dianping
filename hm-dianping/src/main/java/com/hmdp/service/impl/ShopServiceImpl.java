@@ -1,14 +1,15 @@
 package com.hmdp.service.impl;
 
 import cn.hutool.core.util.RandomUtil;
-import cn.hutool.json.JSONObject;
 import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONObject;
 import com.hmdp.dto.Result;
 import com.hmdp.entity.Shop;
 import com.hmdp.mapper.ShopMapper;
 import com.hmdp.service.IShopService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.utils.MutexLock;
+import com.hmdp.utils.RedisData;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +40,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
     private ShopMapper shopMapper;
     @Resource
     private MutexLock mutexLock;
+
     /**
      * 缓存穿透:当请求所请求的数据是数据库中不存在时,会出现每次请求均会穿过redis打在数据库上,存在数据库崩溃的情况
      * 解决:
@@ -54,17 +56,20 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
      * 每次请求时,都会检查数据是否已过期,如果过期,额外创建一个线程用来缓存的重建(也要加一个锁,不然就会出现产生大量线程的情况),请求的线程直接返回旧数据
      * 两种方法均可以解决缓存击穿的问题,1.方法会出现大量线程等待的问题(有几率出现死锁),但是数据的一致性良好,2.方法由于返回的是旧数据,可能会出现数据不一致的情况,但是不会出现线程等待的问题
      * 最终结果: 1 + 2
+     *
      * @param id
      * @return
      */
     @Override
     public Shop getShopDetailById(Long id) {
         //redis缓存查询店铺信息
-        Shop cacheData = getCacheData(id);
-        if(cacheData != null){
-            return cacheData;
+        RedisData redisData = getCacheData(id);
+        if (redisData != null &&
+                (redisData.getExpireTime() == null || redisData.getExpireTime().isAfter(LocalDateTime.now()))) {
+            //两种数据允许允许返回 1.expire为空(为应对缓存穿透存储的空数据) 2.expire不为空且没有过期
+            JSONObject jsonObject = (JSONObject) redisData.getData();
+            return jsonObject == null ? null : jsonObject.to(Shop.class);
         }
-
         //高并发 且 缓存难以重建 容易出现缓存击穿
         //1.根据互斥锁解决
 //        try {
@@ -83,40 +88,76 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
 //        }finally {
 //            mutexLock.releaseLock(LOCK_SHOP_KEY + id);
 //        }
-
         //2.逻辑过期(在建立缓存时不在添加ttl,而是使用一个字段代表过期时间) + 互斥锁 + 额外线程解决
         //2.1 尝试获取锁,如果获取锁,则创建一个线程,用于缓存的重建
+        if (mutexLock.getLock(LOCK_SHOP_KEY + id)) {
+            new Thread(new createCacheThread(id)).start();
+        }
+        //2.2 无论是否成功获取锁,都直接返回旧数据//第一次访问返回的是null//可以进行缓存预热
+        if(redisData == null){
+            return null;
+        }
+        JSONObject jsonObject = (JSONObject) redisData.getData();
+        return jsonObject.to(Shop.class);
+    }
 
-        //2.2 如果获取锁失败,直接返回旧数据
-
-        return null;
+    /**
+     * 用于缓存的重建
+     */
+    private class createCacheThread implements Runnable {
+        private Long id;
+        private createCacheThread(Long id) {
+            this.id = id;
+        }
+        @Override
+        public void run() {
+            if (id == null) {
+                throw new RuntimeException("shop_lockKey is Null");
+            }
+            try {
+                Thread.sleep(200);
+                Shop shop = shopMapper.selectById(id);
+                if (shop == null) {
+                    //数据库中没有数据,需要存储空数据至redis,避免缓存穿透
+                    stringRedisTemplate.opsForValue().set(CACHE_SHOP_KEY + id, "");
+                }
+                RedisData redisData = new RedisData();
+                redisData.setData(shop);
+                redisData.setExpireTime(LocalDateTime.now().plusMinutes(CACHE_SHOP_LOGIC_EXPIRE));
+                stringRedisTemplate.opsForValue().set(CACHE_SHOP_KEY + id, JSON.toJSONString(redisData));
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            } finally {
+                mutexLock.releaseLock(LOCK_SHOP_KEY + id);
+            }
+        }
     }
 
     /**
      * 获取缓存中的数据(对应逻辑过期 + 互斥锁)
+     *
      * @param id
-     * @return null 数据不存在 Shop 缓存中的数据
-     * @Versoin 1.0
+     * @return null 缓存中数据不存在 Shop(空)解决缓存穿透 Shop(非空) 缓存中的数据(可能为旧数据)
      */
-    private Shop getCacheData(Long id){
-        String cacheShop = stringRedisTemplate.opsForValue().get(CACHE_SHOP_KEY + id);
+    private RedisData getCacheData(Long id) {
+        //对于逻辑过期 从逻辑上讲 缓存与数据库在数据是否存在上是保持一致的,所以如果缓存中没有对应数据,那么数据库中
+        //就真的没有,不过需要有一个前提,就是存在缓存的预热,提前预热想缓存中直接存储数据,有点麻烦.这里就忽略数据存在一致性
+        String cacheRedisData = stringRedisTemplate.opsForValue().get(CACHE_SHOP_KEY + id);
         //缓存中不存在数据或为空数据
-        if (!StringUtils.hasText(cacheShop)) {
+        if (!StringUtils.hasText(cacheRedisData)) {
             //避免缓存穿透//空数据代表缓存和数据库中均没有
-            if("".equals(cacheShop)){
-                return new Shop();
+            if ("".equals(cacheRedisData)) {
+                return new RedisData();
             }
             //返回null代表缓存中没有,要去数据库查找,如果数据库也没有,就存储一个空数据
             return null;
         }
-        Shop shop = JSON.parseObject(cacheShop, Shop.class);
-        if(StringUtils.hasText(shop.getExpire()) && Long.valueOf(shop.getExpire()) > System.currentTimeMillis()){
-            return JSON.parseObject(cacheShop, Shop.class);
-        }
-        return null;
+        return JSON.parseObject(cacheRedisData, RedisData.class);
     }
+
     /**
      * 重新建立缓存,基于互斥锁
+     *
      * @param id
      * @return
      * @throws InterruptedException
@@ -138,13 +179,6 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
         return shop;
     }
 
-    /**
-     * 重新建立缓存,基于逻辑过期 + 互斥锁
-     * @return
-     */
-    private Shop createCacheByLogicExpire(Long id){
-        return null;
-    }
     /**
      * 更新店铺信息
      * 需要考虑数据库与redis数据的一致性以及在高并发时出现读写数据库缓存数据问题
