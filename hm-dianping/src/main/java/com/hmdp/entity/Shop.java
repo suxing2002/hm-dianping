@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
  * 
  * </p>
  *
- * @author 虎哥
+ * @author 郭硕
  * @since 2021-12-22
  */
 @Data
@@ -106,4 +106,8 @@ public class Shop implements Serializable {
 
     @TableField(exist = false)
     private Double distance;
+
+    @TableField(exist = false)
+    private String expire;
+
 }

@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.hmdp.dto.UserDTO;
 import com.hmdp.entity.User;
 import com.hmdp.mapper.UserMapper;
+import com.hmdp.utils.MutexLock;
 import com.hmdp.utils.SendCodeUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.DisplayName;
@@ -15,7 +16,10 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
+import javax.annotation.Resource;
 import java.util.List;
+
+import static com.hmdp.utils.RedisConstants.CACHE_SHOP_KEY;
 
 @SpringBootTest
 @Slf4j
@@ -24,6 +28,8 @@ class HmDianPingApplicationTests {
     private SendCodeUtils sendCodeUtils;
     @Autowired
     private UserMapper userMapper;
+    @Resource
+    private MutexLock mutexLock;
     @DisplayName("测试验证码发送")
     @Test
     void testSendCode() {
@@ -72,5 +78,14 @@ class HmDianPingApplicationTests {
         String str = "123";
         Object obj = str;
         System.out.println(obj.getClass());
+    }
+    @Test
+    @DisplayName("测试自定义互斥锁")
+    void test02(){
+        boolean lock = mutexLock.getLock(CACHE_SHOP_KEY + 1);
+        mutexLock.releaseLock(CACHE_SHOP_KEY + 1);
+        log.info("{}", lock);
+        boolean lock1 = mutexLock.getLock(CACHE_SHOP_KEY + 1);
+        log.info("{}", lock1);
     }
 }
