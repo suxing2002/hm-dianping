@@ -96,6 +96,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
      * 获取缓存中的数据(对应逻辑过期 + 互斥锁)
      * @param id
      * @return null 数据不存在 Shop 缓存中的数据
+     * @Versoin 1.0
      */
     private Shop getCacheData(Long id){
         String cacheShop = stringRedisTemplate.opsForValue().get(CACHE_SHOP_KEY + id);
