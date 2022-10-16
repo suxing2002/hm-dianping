@@ -18,7 +18,7 @@ import javax.servlet.http.HttpServletResponse;
 public class UserTokenIntercept implements HandlerInterceptor {
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
-        log.info("用户凭证拦截器 - 请求URI:{}", request.getRequestURI());
+//        log.info("用户凭证拦截器 - 请求URI:{}", request.getRequestURI());
         UserDTO userDTO = ConcreteUser.get();
         if(userDTO == null){
             response.setStatus(401);

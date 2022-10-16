@@ -3,23 +3,30 @@ package com.hmdp;
 import cn.hutool.captcha.generator.RandomGenerator;
 import cn.hutool.core.bean.copier.CopyOptions;
 import cn.hutool.core.util.RandomUtil;
+import com.alibaba.fastjson2.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.hmdp.dto.UserDTO;
+import com.hmdp.entity.Shop;
 import com.hmdp.entity.User;
+import com.hmdp.mapper.ShopMapper;
 import com.hmdp.mapper.UserMapper;
-import com.hmdp.utils.MutexLock;
-import com.hmdp.utils.SendCodeUtils;
+import com.hmdp.utils.*;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.redis.core.StringRedisTemplate;
+
 
 import javax.annotation.Resource;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static com.hmdp.utils.RedisConstants.CACHE_SHOP_KEY;
+import static com.hmdp.utils.RedisConstants.CACHE_SHOP_LOGIC_EXPIRE;
 
 @SpringBootTest
 @Slf4j
@@ -30,6 +37,12 @@ class HmDianPingApplicationTests {
     private UserMapper userMapper;
     @Resource
     private MutexLock mutexLock;
+    @Resource
+    private RedisUtils redisUtils;
+    @Resource
+    private ShopMapper shopMapper;
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
     @DisplayName("测试验证码发送")
     @Test
     void testSendCode() {
@@ -87,5 +100,12 @@ class HmDianPingApplicationTests {
         log.info("{}", lock);
         boolean lock1 = mutexLock.getLock(CACHE_SHOP_KEY + 1);
         log.info("{}", lock1);
+    }
+    @Test
+    @DisplayName("缓存预热")
+    void cacheBeforeFire()  {
+        Shop queryResult = shopMapper.selectById(1);
+        RedisData cache = new RedisData(LocalDateTime.now().plusSeconds(CACHE_SHOP_LOGIC_EXPIRE) , queryResult);
+        stringRedisTemplate.opsForValue().set(CACHE_SHOP_KEY + 1, JSON.toJSONString(cache));
     }
 }

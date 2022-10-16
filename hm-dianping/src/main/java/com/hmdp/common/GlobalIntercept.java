@@ -42,7 +42,7 @@ public class GlobalIntercept implements HandlerInterceptor {
      */
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
-        log.info("全局拦截器 - 请求URI:{}", request.getRequestURI());
+//        log.info("全局拦截器 - 请求URI:{}", request.getRequestURI());
         String token = request.getHeader("authorization");
         if(!StringUtils.hasText(token)){
             return true;
