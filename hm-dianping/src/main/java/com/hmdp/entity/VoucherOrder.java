@@ -23,6 +23,9 @@ import java.time.LocalDateTime;
 @Accessors(chain = true)
 @TableName("tb_voucher_order")
 public class VoucherOrder implements Serializable {
+    public static final Integer PAY_REMAINING_SUM = 1;
+    public static final Integer PAY_ALIPAY = 2;
+    public static final Integer PAY_WECHAT = 3;
 
     private static final long serialVersionUID = 1L;
 

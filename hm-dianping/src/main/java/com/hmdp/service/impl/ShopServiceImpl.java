@@ -65,7 +65,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
      */
     @Override
     public Shop getShopDetailById(Long id) {
-       return redisUtils.cacheThroughWithLogicExpire(id, CACHE_SHOP_KEY, LOCK_SHOP_KEY, Duration.ofMinutes(CACHE_SHOP_LOGIC_EXPIRE),
+       return redisUtils.cacheThroughWithMutexLock(id, CACHE_SHOP_KEY, LOCK_SHOP_KEY, Duration.ofMinutes(CACHE_SHOP_LOGIC_EXPIRE),
                Shop.class, i -> shopMapper.selectById(i));
     }
     /**

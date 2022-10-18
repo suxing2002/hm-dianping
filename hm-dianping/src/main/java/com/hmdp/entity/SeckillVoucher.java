@@ -3,8 +3,11 @@ package com.hmdp.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.Version;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 
 import java.io.Serializable;
@@ -56,6 +59,6 @@ public class SeckillVoucher implements Serializable {
      * 更新时间
      */
     private LocalDateTime updateTime;
-
-
+//    @Version
+//    private Integer Version;
 }

@@ -6,4 +6,10 @@ public class SystemConstants {
     public static final int DEFAULT_PAGE_SIZE = 5;
     public static final int MAX_PAGE_SIZE = 10;
     public static final int RANDOM_CODE_LENGTH = 6;
+    public final static long BEGIN_SECONDS = 1640966400;
+    public final static String ZONE_OFFSET = "+8";
+    public final static int OFFSET_VALUE = 32;
+    public static final String SHOP_SECKILL_VOUCHER = "Shop:SeckillVoucher:";
+
+
 }

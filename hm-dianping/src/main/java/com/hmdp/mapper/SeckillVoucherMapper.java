@@ -2,6 +2,7 @@ package com.hmdp.mapper;
 
 import com.hmdp.entity.SeckillVoucher;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import org.springframework.stereotype.Component;
 
 /**
  * <p>
@@ -11,6 +12,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
  * @author 郭硕
  * @since 2022-01-04
  */
+@Component
 public interface SeckillVoucherMapper extends BaseMapper<SeckillVoucher> {
 
 }
