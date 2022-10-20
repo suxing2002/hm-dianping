@@ -60,7 +60,7 @@ public class VoucherServiceImpl extends ServiceImpl<VoucherMapper, Voucher> impl
         seckillVoucher.setBeginTime(voucher.getBeginTime());
         seckillVoucher.setEndTime(voucher.getEndTime());
         //在缓存中保存秒杀劵信息
-        stringRedisTemplate.opsForValue().set(RedisConstants.SECVOUCHER + seckillVoucher.getVoucherId(), seckillVoucher.getStock().toString());
+        stringRedisTemplate.opsForValue().set(RedisConstants.SECVOUCHER_STOCK + seckillVoucher.getVoucherId(), seckillVoucher.getStock().toString());
         //在数据库中存储数据
         seckillVoucherService.save(seckillVoucher);
     }

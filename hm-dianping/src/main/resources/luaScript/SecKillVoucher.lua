@@ -8,20 +8,26 @@
 --2.是否已经购买
 --已购买,返回2
 --购买成功返回0
---secKillVoucher:voucherId
-local voucherKey = "secKillVoucher:" .. ARGV[1]
 --userId
 local orderSetMember = ARGV[2]
+--orderId
+local orderId = ARGV[3]
+--voucherId
+local voucherId = ARGV[1]
+--secKillVoucher:voucherId
+local voucherKey = "secKillVoucher_stock:" .. ARGV[1]
 --order:secKillVoucherOrder:voucherId
 local orderSetKey = "order:secKillVoucherOrder:" .. ARGV[1]
 if(tonumber(redis.call("get",voucherKey)) <= 0)then
     --库存不足
     return 1
 end
-if(tonumber(redis.call("sismember" ,orderSetKey,orderSetMember)) == 1)then
-   --已购买
-    return 2
-end
+--if(tonumber(redis.call("sismember" ,orderSetKey,orderSetMember)) == 1)then
+--   --已购买
+--    return 2
+--end
+--基于redisStream实现消息队列
+redis.call("xadd" , KEYS[1] , "*" , "id" , orderId , "userId" , orderSetMember , "voucherId" , voucherId)
 redis.call("DECRBY",voucherKey,1)
 redis.call("sadd",orderSetKey,orderSetMember)
 return 0

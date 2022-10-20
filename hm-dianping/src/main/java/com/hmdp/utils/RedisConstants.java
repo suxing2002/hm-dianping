@@ -22,7 +22,7 @@ public class RedisConstants {
     public static final String FEED_KEY = "feed:";
     public static final String SHOP_GEO_KEY = "shop:geo:";
     public static final String USER_SIGN_KEY = "sign:";
-    public static final String SECVOUCHER = "secKillVoucher:";
+    public static final String SECVOUCHER_STOCK = "secKillVoucher_stock:";
     public static final String SHOP_SECKILL_VOUCHER = "Shop:SecKillVoucher:";
     public static final String LOCK_SECKILL_VOUCHER_ORDER = "lock:secKill_voucher:order:";
 }
