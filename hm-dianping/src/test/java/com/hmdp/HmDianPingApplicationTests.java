@@ -49,8 +49,8 @@ class HmDianPingApplicationTests {
     private RedisUtils redisUtils;
     @Resource
     private ShopMapper shopMapper;
-    @Autowired
-    private StringRedisTemplate stringRedisTemplate;
+    @Resource(name = "stringRedisTemplate")
+    private StringRedisTemplate redisTemplate;
     @Resource
     private GlobalIDGenerator generator;
     @Autowired
@@ -58,6 +58,12 @@ class HmDianPingApplicationTests {
     @Autowired
     private ISeckillVoucherService seckillVoucherService;
     private ExecutorService threadPool = Executors.newFixedThreadPool(500);
+   @Autowired
+   private SeckillVoucherMapper seckillVoucherMapper;
+    @Test
+    void test() {
+        seckillVoucherMapper.selectById(14);
+    }
 
     @DisplayName("测试验证码发送")
     @Test
@@ -125,7 +131,7 @@ class HmDianPingApplicationTests {
     void cacheBeforeFire() {
         Shop queryResult = shopMapper.selectById(1);
         RedisData cache = new RedisData(LocalDateTime.now().plusSeconds(CACHE_SHOP_LOGIC_EXPIRE), queryResult);
-        stringRedisTemplate.opsForValue().set(CACHE_SHOP_KEY + 1, JSON.toJSONString(cache));
+        redisTemplate.opsForValue().set(CACHE_SHOP_KEY + 1, JSON.toJSONString(cache));
     }
 
     @DisplayName("测试全局Id生成器")
@@ -158,15 +164,14 @@ class HmDianPingApplicationTests {
         voucher.setStock(100);
         voucher.setBeginTime(LocalDateTime.now().plusDays(1));
         voucher.setEndTime(LocalDateTime.now().plusDays(6));
-        voucher.setUpdateTime(LocalDateTime.now());
-        voucher.setCreateTime(LocalDateTime.now());
-        voucherService.save(voucher);
+        System.out.println(JSON.toJSONString(voucher));
+//        voucherService.save(voucher);
         // 保存秒杀信息
-        SeckillVoucher seckillVoucher = new SeckillVoucher();
-        seckillVoucher.setVoucherId(voucher.getId());
-        seckillVoucher.setStock(voucher.getStock());
-        seckillVoucher.setBeginTime(voucher.getBeginTime());
-        seckillVoucher.setEndTime(voucher.getEndTime());
-        seckillVoucherService.save(seckillVoucher);
+//        SeckillVoucher seckillVoucher = new SeckillVoucher();
+//        seckillVoucher.setVoucherId(voucher.getId());
+//        seckillVoucher.setStock(voucher.getStock());
+//        seckillVoucher.setBeginTime(voucher.getBeginTime());
+//        seckillVoucher.setEndTime(voucher.getEndTime());
+//        seckillVoucherService.save(seckillVoucher);
     }
 }

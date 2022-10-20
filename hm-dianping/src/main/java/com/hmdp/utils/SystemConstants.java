@@ -9,7 +9,7 @@ public class SystemConstants {
     public final static long BEGIN_SECONDS = 1640966400;
     public final static String ZONE_OFFSET = "+8";
     public final static int OFFSET_VALUE = 32;
-    public static final String SHOP_SECKILL_VOUCHER = "Shop:SeckillVoucher:";
+
 
 
 }

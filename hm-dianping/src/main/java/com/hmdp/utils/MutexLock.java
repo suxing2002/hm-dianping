@@ -30,7 +30,6 @@ public class MutexLock {
         Boolean absent = stringRedisTemplate.opsForValue().setIfAbsent(lockKey, "", Duration.ofSeconds(LOCK_HOLDER_TTL));
         return BooleanUtil.isTrue(absent);
     }
-
     /**
      * 释放名为lockKey的锁
      * @param lockKey
