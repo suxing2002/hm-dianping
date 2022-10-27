@@ -83,7 +83,6 @@ public class RedisUtils {
             }
             return null;
         }
-        //TODO 需要将逻辑 和 普通分离
         return JSON.parseObject(cacheData , type);
     }
 

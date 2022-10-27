@@ -150,6 +150,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         return Result.fail("登陆失败,请检查号码或验证码是否正确");
     }
 
+    @Override
+    public Result getUserById(String userId) {
+        User user = query().eq("id", userId).one();
+        UserDTO userDTO = BeanUtil.copyProperties(user, UserDTO.class, "");
+        return Result.ok(userDTO);
+    }
+
     private User queryUserByPhone(String phone) {
         LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(User::getPhone, phone);

@@ -86,4 +86,12 @@ public class UserController {
         // 返回
         return Result.ok(info);
     }
+    /**
+     * 请求 URL: http://localhost:8080/api/user/2
+     * 请求方法: GET
+     */
+    @GetMapping("/{userId}")
+    public Result getUserInfo(@PathVariable String userId){
+        return userService.getUserById(userId);
+    }
 }

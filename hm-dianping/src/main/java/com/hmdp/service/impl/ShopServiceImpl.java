@@ -3,15 +3,15 @@ package com.hmdp.service.impl;
 import cn.hutool.core.util.RandomUtil;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hmdp.dto.Result;
 import com.hmdp.entity.Shop;
 import com.hmdp.mapper.ShopMapper;
 import com.hmdp.service.IShopService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.hmdp.utils.MutexLock;
-import com.hmdp.utils.RedisConstants;
-import com.hmdp.utils.RedisData;
-import com.hmdp.utils.RedisUtils;
+import com.hmdp.utils.*;
+import org.springframework.data.geo.*;
+import org.springframework.data.redis.connection.RedisGeoCommands;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +23,11 @@ import javax.xml.crypto.Data;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static com.hmdp.utils.RedisConstants.*;
 
@@ -44,6 +49,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
     private MutexLock mutexLock;
     @Resource
     private RedisUtils redisUtils;
+
     /**
      * 缓存穿透:当请求所请求的数据是数据库中不存在时,会出现每次请求均会穿过redis打在数据库上,存在数据库崩溃的情况
      * 解决:
@@ -65,9 +71,10 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
      */
     @Override
     public Shop getShopDetailById(Long id) {
-       return redisUtils.cacheThroughWithMutexLock(id, CACHE_SHOP_KEY, LOCK_SHOP_KEY, Duration.ofMinutes(CACHE_SHOP_LOGIC_EXPIRE),
-               Shop.class, i -> shopMapper.selectById(i));
+        return redisUtils.cacheThroughWithMutexLock(id, CACHE_SHOP_KEY, LOCK_SHOP_KEY, Duration.ofMinutes(CACHE_SHOP_LOGIC_EXPIRE),
+                Shop.class, i -> shopMapper.selectById(i));
     }
+
     /**
      * 更新店铺信息
      * 需要考虑数据库与redis数据的一致性以及在高并发时出现读写数据库缓存数据问题
@@ -76,6 +83,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
      * 2. redis -> 数据库
      * 两种操作均会出现高并发时缓存与数据库数据不一致的情况,第一种相对于第二种好一些
      * 对于热点数据,如果使用的是逻辑过期的策略,就不能去删除缓存,而是去设置数据过期
+     *
      * @param shop
      */
     @Override
@@ -86,6 +94,51 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
         }
         shopMapper.updateById(shop);
         stringRedisTemplate.delete(CACHE_SHOP_KEY + shop.getId().toString());
+    }
+
+    @Override
+    public Result queryShopByType(Integer typeId, Integer current, Double x, Double y) {
+        //查询结果 + 分页
+        if (x != null && y != null) {
+            //查询redis商铺id
+            long start = (current - 1) * SystemConstants.MAX_PAGE_SIZE;
+            long end = current * SystemConstants.MAX_PAGE_SIZE;
+            String geoShopKey = GEO_SHOP_KEY + typeId;
+            GeoResults<RedisGeoCommands.GeoLocation<String>> geoResults =
+                    stringRedisTemplate.opsForGeo().radius(
+                            geoShopKey,
+                            new Circle(new Point(x, y), new Distance(RedisConstants.GEO_SHOP_RADIUS)),
+                            RedisGeoCommands.GeoRadiusCommandArgs.newGeoRadiusArgs().limit(end).includeDistance()
+                    );
+            List<GeoResult<RedisGeoCommands.GeoLocation<String>>> results = geoResults.getContent();
+            if (results == null || results.size() == 0 || start > results.size()) {
+                return Result.ok();
+            }
+            //拿到id 和 distance
+            HashMap<String, Double> shopMap = new HashMap<>();
+            ArrayList<String> shopList = new ArrayList<>();
+            results.stream()
+                    .skip(start)
+                    .forEach(i -> {
+                                shopMap.put(i.getContent().getName(), i.getDistance().getValue());
+                                shopList.add(i.getContent().getName());
+                            }
+                    );
+            String idJoin = String.join(",", shopList);
+            List<Shop> shops = query().in("id", shopList).last("order by field( id ," + idJoin + ")").list();
+            shops.forEach(
+                    shop -> {
+                        shop.setDistance(shopMap.get(String.valueOf(shop.getId())));
+                    }
+            );
+            return Result.ok(shops);
+        } else {
+            // 根据类型分页查询
+            Page<Shop> page = query()
+                    .eq("type_id", typeId)
+                    .page(new Page<>(current, SystemConstants.DEFAULT_PAGE_SIZE));
+            return Result.ok(page.getRecords());
+        }
     }
 
 }

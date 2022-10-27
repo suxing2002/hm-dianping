@@ -48,4 +48,6 @@ public interface IUserService extends IService<User> {
      * @return
      */
     Result userSignInWithRedis(LoginFormDTO loginForm);
+
+    Result getUserById(String userId);
 }

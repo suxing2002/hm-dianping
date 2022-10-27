@@ -25,4 +25,15 @@ public class RedisConstants {
     public static final String SECVOUCHER_STOCK = "secKillVoucher_stock:";
     public static final String SHOP_SECKILL_VOUCHER = "Shop:SecKillVoucher:";
     public static final String LOCK_SECKILL_VOUCHER_ORDER = "lock:secKill_voucher:order:";
+    public static final String CACHE_BLOG_KEY = "cache:blog:";
+    public static final long CACHE_BLOG_TTL = 5L;
+    public static final String ZSET_BLOG_LIKE = "sortSet:blog:like:";
+    public static final String BLOG_LIKE_DEFAULT = "";
+    public static final double BLOG_LIKE_ZSET_START = 0;
+    public static final long BLOG_LIKE_COUNT = 5;
+    public static final long BLOG_LIKE_OFFSET = 0;
+    public static final String SET_FOLLOW_KEY = "set:follow:";
+    public static final String ZSET_BLOG_MAILBOX_KEY = "sortSet:mailBox:";
+    public static final String GEO_SHOP_KEY = "geo:shop:";
+    public static final double GEO_SHOP_RADIUS = 5000;
 }
